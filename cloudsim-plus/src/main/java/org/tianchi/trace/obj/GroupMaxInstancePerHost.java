@@ -1,5 +1,10 @@
 package org.tianchi.trace.obj;
 
+/**
+ * 
+ * @author peini liu
+ *
+ */
 public class GroupMaxInstancePerHost {
 
 	private String group;

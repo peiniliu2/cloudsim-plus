@@ -1,16 +1,20 @@
 package org.tianchi.trace.obj;
 
 import java.util.List;
-
+/**
+ * 
+ * @author peini liu
+ *
+ */
 public class RuleSource {
 	
 	private int timeLimitInMins; //time limitation 60min
 	
-	private int defaultMaxInstancePerHost;
+	private int defaultMaxInstancePerHost; //every app_group has two instances as default
 	
-	private List<GroupMaxInstancePerHost> groupMaxInstancePerHosts;
+	private List<GroupMaxInstancePerHost> groupMaxInstancePerHosts; //group's constraint [group like add or saperate? the maximum containers]
 
-	private List<ReplicasMaxInstancePerHost> replicasMaxInstancePerHosts;
+	private List<ReplicasMaxInstancePerHost> replicasMaxInstancePerHosts; // a conditional group's constraint [the maximum containers]
 
 	public int getTimeLimitInMins() {
 		return timeLimitInMins;

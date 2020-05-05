@@ -5,6 +5,7 @@ import java.util.List;
 import org.cloudbus.cloudsim.vms.VmCost;
 import org.tianchi.results.csv.TianchiResult;
 import org.tianchi.trace.obj.Pod;
+import org.tianchi.trace.obj.SingleNodeState;
 
 /**
  * This metric measures the costs
@@ -25,14 +26,14 @@ public class CostsMetric implements Metrics{
 	@Override
 	public float getScore() {
 		// TODO Auto-generated method stub
-		for (int i=0; i<tianchiresult.getStates().size(); i++) {
+		for (SingleNodeState singleNodeState : tianchiresult.getStates()) {
 			//gpu:10/ka ; cpu:2/core ; ram:1/GB
-			int gpu = tianchiresult.getStates().get(i).getNode().getGpu();
-			int cpu = tianchiresult.getStates().get(i).getNode().getCpu();
-			int ram = tianchiresult.getStates().get(i).getNode().getRam();		
+			int gpu = singleNodeState.getNode().getGpu();
+			int cpu = singleNodeState.getNode().getCpu();
+			int ram = singleNodeState.getNode().getRam();		
 			int machinecost  = 10 * gpu + 2 * cpu + 1 * ram; 
 			//cost if the machine has containers
-			List<Pod> pods = tianchiresult.getStates().get(i).getPods();
+			List<Pod> pods = singleNodeState.getPods();
 			if(pods != null) {
 				costs = costs + machinecost;
 			}

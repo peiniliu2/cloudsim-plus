@@ -2,6 +2,11 @@ package org.tianchi.trace.obj;
 
 import java.util.List;
 
+/**
+ * 
+ * @author peini liu
+ *
+ */
 public abstract class AllNodesStates {
 	
 	private List<SingleNodeState> states;

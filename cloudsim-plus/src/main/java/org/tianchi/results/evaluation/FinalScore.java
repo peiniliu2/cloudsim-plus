@@ -21,6 +21,8 @@ public class FinalScore implements Metrics{
 	@Override
 	public float getScore() {
 		// TODO Auto-generated method stub
+		//ConstraintsCheck funtion missing
+		
 		CostsMetric costs = new CostsMetric(staticresult);
 		DistributionMetric distribution = new DistributionMetric(staticresult);
 		float scorestatic = costs.getScore() + distribution.getScore();

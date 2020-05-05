@@ -2,6 +2,11 @@ package org.tianchi.trace.obj;
 
 import java.util.List;
 
+/**
+ * 
+ * @author peini liu
+ *
+ */
 public class Node {
 	
 	private String sn;
