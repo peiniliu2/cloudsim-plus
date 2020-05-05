@@ -14,7 +14,7 @@ public class App {
 	
 	private String disk;
 	
-	private String replica;
+	private String replicas;
 
 	public String getAppName() {
 		return appName;
@@ -64,11 +64,11 @@ public class App {
 		this.disk = disk;
 	}
 
-	public String getReplica() {
-		return replica;
+	public String getReplicas() {
+		return replicas;
 	}
 
-	public void setReplica(String replica) {
-		this.replica = replica;
+	public void setReplicas(String replicas) {
+		this.replicas = replicas;
 	}
 }

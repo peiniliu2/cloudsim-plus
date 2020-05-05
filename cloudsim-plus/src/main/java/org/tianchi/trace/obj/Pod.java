@@ -16,7 +16,7 @@ public class Pod {
 	
 	private int disk;
 	
-	private List<Integer> cpuids;
+	private List<Integer> cpuIDs;
 
 	public String getAppName() {
 		return appName;
@@ -66,12 +66,12 @@ public class Pod {
 		this.disk = disk;
 	}
 
-	public List<Integer> getCpuids() {
-		return cpuids;
+	public List<Integer> getCpuIDs() {
+		return cpuIDs;
 	}
 
-	public void setCpuids(List<Integer> cpuids) {
-		this.cpuids = cpuids;
+	public void setCpuIDs(List<Integer> cpuIDs) {
+		this.cpuIDs = cpuIDs;
 	}
 	
 	

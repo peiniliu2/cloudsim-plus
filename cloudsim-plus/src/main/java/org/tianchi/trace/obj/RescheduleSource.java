@@ -1,6 +1,6 @@
 package org.tianchi.trace.obj;
 
-public class RescheduleSource extends AllNodesStatus{
+public class RescheduleSource extends AllNodesStates{
 
 	public RescheduleSource() {
 		super();

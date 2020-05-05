@@ -7,7 +7,7 @@ import java.util.List;
  * @author peini liu
  *
  */
-public class SingleNodeStatus {
+public class SingleNodeState {
 	
 	private Node node;
 	
