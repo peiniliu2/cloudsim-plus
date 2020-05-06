@@ -2,6 +2,7 @@ package org.tianchi.results.evaluation;
 
 
 import org.tianchi.results.csv.TianchiResult;
+import org.tianchi.trace.obj.RuleSource;
 
 public class FinalScore implements Metrics{
 	
@@ -11,11 +12,13 @@ public class FinalScore implements Metrics{
 	
 	private TianchiResult dynamicresult;
 	
+	private RuleSource ruleSource;
 
-	public FinalScore(TianchiResult staticresult, TianchiResult dynamicresult) {
+	public FinalScore(TianchiResult staticresult, TianchiResult dynamicresult, RuleSource ruleSource) {
 		super();
 		this.staticresult = staticresult;
 		this.dynamicresult = dynamicresult;
+		this.ruleSource = ruleSource;
 	}
 
 	@Override
@@ -28,7 +31,7 @@ public class FinalScore implements Metrics{
 		float scorestatic = costs.getScore() + distribution.getScore();
 		
 		CostsMetric costsdyn = new CostsMetric(dynamicresult);
-		DistributionMetric distributiondyn = new DistributionMetric(dynamicresult);	
+		DistributionMetric distributiondyn = new DistributionMetric(dynamicresult,ruleSource);	
 		MigrationMetric migration = new MigrationMetric(dynamicresult);
 		float scoredynamic = costsdyn.getScore() + distributiondyn.getScore() + migration.getScore();
 		

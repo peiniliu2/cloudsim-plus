@@ -15,6 +15,10 @@ public class AppGroupCounter {
 	private int replicas;
 	
 	private Map<Object,Long> distribution; 
+	
+	private int maxInstancePerHost = 2;
+	
+	private boolean requirment = false;
 
 	public int getReplicas() {
 		return replicas;
@@ -42,6 +46,22 @@ public class AppGroupCounter {
 
 	public void setDistribution(Map<Object,Long> distribution) {
 		this.distribution = distribution;
+	}
+
+	public int getMaxInstancePerHost() {
+		return maxInstancePerHost;
+	}
+
+	public void setMaxInstancePerHost(int maxInstancePerHost) {
+		this.maxInstancePerHost = maxInstancePerHost;
+	}
+
+	public boolean isRequirment() {
+		return requirment;
+	}
+
+	public void setRequirment(boolean requirment) {
+		this.requirment = requirment;
 	}
 
 
