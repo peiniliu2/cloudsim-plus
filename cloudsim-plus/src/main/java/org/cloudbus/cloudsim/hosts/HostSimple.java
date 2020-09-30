@@ -19,11 +19,9 @@ import org.cloudbus.cloudsim.schedulers.vm.VmScheduler;
 import org.cloudbus.cloudsim.schedulers.vm.VmSchedulerSpaceShared;
 import org.cloudbus.cloudsim.util.Conversion;
 import org.cloudbus.cloudsim.util.TimeUtil;
-import org.cloudbus.cloudsim.vms.UtilizationHistory;
-import org.cloudbus.cloudsim.vms.Vm;
-import org.cloudbus.cloudsim.vms.VmGroup;
-import org.cloudbus.cloudsim.vms.VmStateHistoryEntry;
+import org.cloudbus.cloudsim.vms.*;
 import org.cloudsimplus.listeners.EventListener;
+import org.cloudsimplus.listeners.HostEventInfo;
 import org.cloudsimplus.listeners.HostUpdatesVmsProcessingEventInfo;
 
 import java.util.*;
@@ -73,6 +71,9 @@ public class HostSimple implements Host {
     /** @see #getStartTime() */
     private double startTime = -1;
 
+    /** @see #getFirstStartTime() */
+    private double firstStartTime = -1;
+
     /** @see #getShutdownTime() */
     private double shutdownTime;
 
@@ -115,8 +116,14 @@ public class HostSimple implements Host {
     /** @see #getDatacenter() */
     private Datacenter datacenter;
 
-    /** @see Host#removeOnUpdateProcessingListener(EventListener) */
+    /** @see #addOnUpdateProcessingListener(EventListener) */
     private final Set<EventListener<HostUpdatesVmsProcessingEventInfo>> onUpdateProcessingListeners;
+
+    /** @see #addOnStartupListener(EventListener) (EventListener) */
+    private final Set<EventListener<HostEventInfo>> onStartupListeners;
+
+    /** @see #addOnShutdownListener(EventListener) (EventListener) */
+    private final Set<EventListener<HostEventInfo>> onShutdownListeners;
 
     /** @see #getSimulation() */
     private Simulation simulation;
@@ -261,7 +268,11 @@ public class HostSimple implements Host {
         this.setFailed(false);
         this.shutdownTime = -1;
         this.setDatacenter(Datacenter.NULL);
+
         this.onUpdateProcessingListeners = new HashSet<>();
+        this.onStartupListeners = new HashSet<>();
+        this.onShutdownListeners = new HashSet<>();
+
         this.resources = new ArrayList<>();
         this.vmCreatedList = new ArrayList<>();
         this.provisioners = new ArrayList<>();
@@ -320,14 +331,6 @@ public class HostSimple implements Host {
     public static void setDefaultStorageCapacity(final long defaultCapacity) {
         AbstractMachine.validateCapacity(defaultCapacity);
         defaultStorageCapacity = defaultCapacity;
-    }
-
-    @Override
-    public double getTotalMipsCapacity() {
-        return peList.stream()
-                .filter(Pe::isWorking)
-                .mapToDouble(Pe::getCapacity)
-                .sum();
     }
 
     @SuppressWarnings("ForLoopReplaceableByForEach")
@@ -405,7 +408,7 @@ public class HostSimple implements Host {
      * Try to allocate all resources that a VM requires (Storage, RAM, BW and MIPS) to be placed at this Host.
      *
      * @param vm the VM to try allocating resources to
-     * @param inMigration If the VM is migrating into the Host or it is being just created for the first time
+     * @param inMigration If the VM is migrating into the Host or it is being just created for the first time.
      * @return true if the Vm was placed into the host, false if the Host doesn't have enough resources to allocate the Vm
      */
     private boolean allocateResourcesForVm(final Vm vm, final boolean inMigration){
@@ -457,6 +460,14 @@ public class HostSimple implements Host {
         return isSuitableForVm(vm, false, false);
     }
 
+    /**
+     *
+     * @param vm
+     * @param inMigration If the VM is migrating into the Host or it is being just created for the first time,
+     *                    in this case, just for logging purposes.
+     * @param showFailureLog
+     * @return
+     */
     private boolean isSuitableForVm(final Vm vm, final boolean inMigration, final boolean showFailureLog) {
         if (!storage.isAmountAvailable(vm.getStorage())) {
             return showFailureLog && logAllocationError(vm, inMigration, "MB", this.getStorage(), vm.getStorage());
@@ -480,7 +491,7 @@ public class HostSimple implements Host {
 
     @Override
     public boolean hasEverStarted() {
-        return this.startTime > -1;
+        return this.firstStartTime > -1;
     }
 
     @Override
@@ -489,7 +500,7 @@ public class HostSimple implements Host {
             throw new IllegalStateException("The Host is failed and cannot be activated.");
         }
 
-        showActivationLogBeforeModification(activate);
+        final boolean wasActive = this.active;
 
         if(activate && !this.active) {
             setStartTime(getSimulation().clock());
@@ -498,27 +509,31 @@ public class HostSimple implements Host {
         }
 
         this.active = activate;
+        notifyStartupOrShutdown(activate, wasActive);
         return this;
     }
 
     /**
-     * Prints information about the (de)activation of the Host,
-     * before its status is changed
+     * Notifies registered listeners about host start up or shutdown,
+     * then prints information when the Host starts up or shuts down.
      * @param activate the activation value that is being requested to set
-     *                 (and will be set after this method call)
+     * @param wasActive the previous value of the {@link #active} attribute
+     *                  (before being updated)
      * @see #setActive(boolean)
      */
-    private void showActivationLogBeforeModification(final boolean activate) {
+    private void notifyStartupOrShutdown(final boolean activate, final boolean wasActive) {
         if(simulation == null || !simulation.isRunning() ) {
             return;
         }
 
-        if(activate && !this.active){
+        if(activate && !wasActive){
             LOGGER.info("{}: {} is being powered on.", getSimulation().clockStr(), this);
+            onStartupListeners.forEach(l -> l.update(HostEventInfo.of(l, this, simulation.clock())));
         }
-        else if(!activate && this.active){
+        else if(!activate && wasActive){
             final String reason = isIdleEnough(idleShutdownDeadline) ? " after becoming idle" : "";
             LOGGER.info("{}: {} is being powered off{}.", getSimulation().clockStr(), this, reason);
+            onShutdownListeners.forEach(l -> l.update(HostEventInfo.of(l, this, simulation.clock())));
         }
     }
 
@@ -568,6 +583,36 @@ public class HostSimple implements Host {
         vmList.clear();
     }
 
+    @Override
+    public Host addOnStartupListener(final EventListener<HostEventInfo> listener) {
+        if(EventListener.NULL.equals(listener)){
+            return this;
+        }
+
+        onStartupListeners.add(Objects.requireNonNull(listener));
+        return this;
+    }
+
+    @Override
+    public boolean removeOnStartupListener(final EventListener<HostEventInfo> listener) {
+        return onStartupListeners.remove(listener);
+    }
+
+    @Override
+    public Host addOnShutdownListener(final EventListener<HostEventInfo> listener) {
+        if(EventListener.NULL.equals(listener)){
+            return this;
+        }
+
+        onShutdownListeners.add(Objects.requireNonNull(listener));
+        return this;
+    }
+
+    @Override
+    public boolean removeOnShutdownListener(final EventListener<HostEventInfo> listener) {
+        return onShutdownListeners.remove(listener);
+    }
+
     /**
      * Deallocate all resources that all VMs were using.
      */
@@ -605,18 +650,31 @@ public class HostSimple implements Host {
     }
 
     @Override
-    public double getTotalAllocatedMipsForVm(final Vm vm) {
-        return vmScheduler.getTotalAllocatedMipsForVm(vm);
-    }
-
-    @Override
     public double getMips() {
         return peList.stream().mapToDouble(Pe::getCapacity).findFirst().orElse(0);
     }
 
     @Override
+    public double getTotalMipsCapacity() {
+        return peList.stream()
+                     .filter(Pe::isWorking)
+                     .mapToDouble(Pe::getCapacity)
+                     .sum();
+    }
+
+    @Override
     public double getTotalAvailableMips() {
         return vmScheduler.getTotalAvailableMips();
+    }
+
+    @Override
+    public double getTotalAllocatedMips() {
+        return getTotalMipsCapacity() - getTotalAvailableMips();
+    }
+
+    @Override
+    public double getTotalAllocatedMipsForVm(final Vm vm) {
+        return vmScheduler.getTotalAllocatedMipsForVm(vm);
     }
 
     @Override
@@ -694,12 +752,21 @@ public class HostSimple implements Host {
     }
 
     @Override
+    public double getFirstStartTime(){
+        return firstStartTime;
+    }
+
+    @Override
     public void setStartTime(final double startTime) {
         if(startTime < 0){
             throw new IllegalArgumentException("Host start time cannot be negative");
         }
 
         this.startTime = Math.floor(startTime);
+        if(firstStartTime == -1){
+            firstStartTime = this.startTime;
+        }
+
         //If the Host is being activated or re-activated, the shutdown time is reset
         this.shutdownTime = -1;
     }
@@ -827,22 +894,28 @@ public class HostSimple implements Host {
         /*For performance reasons, stores the number of free and failed PEs
         instead of iterating over the PE list every time to find out.*/
         for (final Pe pe : peList) {
-            if(pe.getStatus() == newStatus) {
-                continue;
-            }
+            updatePeStatus(pe, newStatus);
+        }
+    }
 
-            switch (pe.getStatus()) {
-                case FAILED: this.failedPesNumber--; break;
-                case FREE: this.freePesNumber--; break;
-            }
-
-            switch (newStatus) {
-                case FAILED: this.failedPesNumber++; break;
-                case FREE:  this.freePesNumber++; break;
-            }
-
-
+    private void updatePeStatus(final Pe pe, final Pe.Status newStatus) {
+        if(pe.getStatus() != newStatus) {
+            updateFailedAndFreePesNumber(pe.getStatus(), false);
+            updateFailedAndFreePesNumber(newStatus, true);
             pe.setStatus(newStatus);
+        }
+    }
+
+    /**
+     * Update the number of Failed and Free PEs.
+     * @param newStatus the new status which is being set for a PE
+     * @param increment true to increment the numbers of Failed and Free PEs to 1, false to decrement
+     */
+    private void updateFailedAndFreePesNumber(final Pe.Status newStatus, final boolean increment) {
+        final int i = increment ? 1 : -1;
+        switch (newStatus) {
+            case FAILED: this.failedPesNumber += i; break;
+            case FREE:  this.freePesNumber += i; break;
         }
     }
 
@@ -853,6 +926,11 @@ public class HostSimple implements Host {
 
     @Override
     public boolean addMigratingInVm(final Vm vm) {
+        /* TODO: Instead of keeping a list of VMs which are migrating into a Host,
+        *  which requires searching in such a list every time a VM is requested to be migrated
+        *  to that Host (to check if it isn't migrating to that same host already),
+        *  we can add a migratingHost attribute to Vm, so that the worst time complexity
+        *  will change from O(N) to a constant time O(1). */
         if (vmsMigratingIn.contains(vm)) {
             return false;
         }
@@ -862,6 +940,8 @@ public class HostSimple implements Host {
             vmsMigratingIn.remove(vm);
             return false;
         }
+
+        ((VmSimple)vm).updateMigrationStartListeners(this);
 
         updateProcessing(simulation.clock());
         vm.getHost().updateProcessing(simulation.clock());
@@ -917,7 +997,7 @@ public class HostSimple implements Host {
 
     @Override
     public Host addOnUpdateProcessingListener(final EventListener<HostUpdatesVmsProcessingEventInfo> listener) {
-        if(listener.equals(EventListener.NULL)){
+        if(EventListener.NULL.equals(listener)){
             return this;
         }
 
@@ -1079,7 +1159,9 @@ public class HostSimple implements Host {
 
     @Override
     public SortedMap<Double, Double> getUtilizationHistorySum() {
-        /*Remaps the value of an entry inside the Utilization History map.*/
+        /*Remaps the value of an entry inside the Utilization History map
+        from DoubleSummaryStatistics to the sum of all values
+        inside the that DoubleSummaryStatistics.*/
         final Function<Entry<Double, DoubleSummaryStatistics>, Double> valueMapper = entry -> entry.getValue().getSum();
 
         return getUtilizationHistory()
